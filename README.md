@@ -33,7 +33,24 @@
 ```
 
 - 언어: Python 3.12
-- 저장·검색: Elasticsearch + Nori (apt-search에서 쓰던 구성 재사용)
+- 검색: BM25 직접 구현 → 의미 검색·하이브리드와 비교
+- 화면: Streamlit 채팅
+
+## 실행
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python src/collect.py     # 법령 수집 (.env에 OC 필요)
+.venv/bin/python src/parse.py       # 조·항 쪼개기
+.venv/bin/python src/evaluate.py    # 검색 평가
+.venv/bin/streamlit run app/chat.py # 채팅 화면
+```
+
+## 기록
+
+- 기능 명세: [docs/specs/](docs/specs/) — 만들기 전에 쓰고, 확인 결과를 적는다
+- 결정 기록: [docs/DECISIONS.md](docs/DECISIONS.md)
+- 실험 기록: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)
 
 ## 폴더
 
@@ -43,5 +60,5 @@ data/processed/  파싱·쪼갠 결과 (git 제외)
 src/             수집·파싱·색인·검색·답변 코드
 app/             채팅 화면 (Streamlit)
 eval/            평가 질문(정답지)과 평가 결과
-docs/            설계·일정·실험 기록
+docs/            설계·일정, specs/ 기능 명세, 결정·실험 기록
 ```
