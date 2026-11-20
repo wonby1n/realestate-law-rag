@@ -1,5 +1,6 @@
 data/raw/
 data/processed/
+data/index/
 .env
 .venv/
 __pycache__/
