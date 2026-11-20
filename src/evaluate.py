@@ -10,6 +10,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from query import normalize
 from search_bm25 import Searcher
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,8 +23,9 @@ def load_questions() -> list[dict]:
     return [q for q in rows if q.get("verified") and q.get("gold")]
 
 
-def recall_at_k(searcher: Searcher, q: dict) -> tuple[float, list[str]]:
-    hits = searcher.search(q["question"], k=K)
+def recall_at_k(searcher: Searcher, q: dict, use_normalize: bool) -> tuple[float, list[str]]:
+    query = normalize(q["question"])[0] if use_normalize else q["question"]
+    hits = searcher.search(query, k=K)
     found = {(c["law"], c["article"]) for c, _ in hits}
     gold = {(g["law"], g["article"]) for g in q["gold"]}
     missed = [f"{law} {art}" for law, art in gold - found]
@@ -36,17 +38,18 @@ def main() -> None:
     results = []
     for unit in ["조", "항"]:
         for with_title in [False, True]:
-            s = Searcher(unit, with_title)
-            per_q = {q["id"]: recall_at_k(s, q) for q in questions}
+          s = Searcher(unit, with_title)
+          for use_norm in [False, True]:
+            per_q = {q["id"]: recall_at_k(s, q, use_norm) for q in questions}
             score = sum(r for r, _ in per_q.values()) / len(per_q)
-            name = f"{unit} 단위, 제목 {'붙임' if with_title else '없음'}"
+            name = f"{unit} 단위, 제목 {'붙임' if with_title else '없음'}, 질문 다듬기 {'함' if use_norm else '안 함'}"
             fails = {qid: missed for qid, (r, missed) in per_q.items() if r < 1}
             print(f"{name}: {score:.3f}  놓친 문항 {len(fails)}개 {sorted(fails)}")
-            results.append({"setting": name, "unit": unit, "with_title": with_title,
+            results.append({"setting": name, "unit": unit, "with_title": with_title, "normalize": use_norm,
                             "recall_at_5": round(score, 3), "missed": fails})
 
-    out = ROOT / "eval" / "results" / f"bm25_{date.today():%Y%m%d}.json"
-    out.write_text(json.dumps({"method": "BM25 (어절 + 글자 두 개 묶음)", "k": K,
+    out = ROOT / "eval" / "results" / f"bm25_{date.today():%Y%m%d}_v2.json"
+    out.write_text(json.dumps({"method": "BM25 (어절 + 글자 두 개 묶음), 질문 다듬기 전후 (명세 003)", "k": K,
                                "n_questions": len(questions), "results": results},
                               ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n저장: {out.relative_to(ROOT)}")

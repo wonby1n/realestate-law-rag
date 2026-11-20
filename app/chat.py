@@ -12,6 +12,7 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from query import normalize  # noqa: E402
 from search_bm25 import Searcher  # noqa: E402
 
 LOGS = ROOT / "logs"
@@ -32,6 +33,7 @@ with st.sidebar:
     st.subheader("검색 설정")
     unit = st.radio("쪼갠 단위", ["조", "항"], horizontal=True)
     with_title = st.toggle("법령명·조문 제목 붙이기", value=True)
+    use_norm = st.toggle("질문 다듬기 (일상어→법률 용어, 숫자 빼기)", value=True)
     if st.button("대화 지우기"):
         st.session_state.messages = []
 
@@ -41,7 +43,9 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 
-def render_hits(hits: list[dict]) -> None:
+def render_hits(hits: list[dict], changes: list[str]) -> None:
+    if changes:
+        st.caption("질문 다듬기: " + " / ".join(changes))
     if not hits:
         st.write("맞는 조문을 찾지 못했습니다.")
         return
@@ -59,7 +63,7 @@ for m in st.session_state.messages:
         if m["role"] == "user":
             st.write(m["content"])
         else:
-            render_hits(m["hits"])
+            render_hits(m["hits"], m.get("changes", []))
             st.caption(DISCLAIMER)
 
 if question := st.chat_input("예: 2025년 3월 1일에 계약했는데 갱신 요구할 수 있나요?"):
@@ -67,15 +71,16 @@ if question := st.chat_input("예: 2025년 3월 1일에 계약했는데 갱신 �
     with st.chat_message("user"):
         st.write(question)
 
-    results = get_searcher(unit, with_title).search(question, k=5)
+    query, changes = normalize(question) if use_norm else (question, [])
+    results = get_searcher(unit, with_title).search(query, k=5)
     hits = [{**c, "score": s} for c, s in results]
-    st.session_state.messages.append({"role": "assistant", "hits": hits})
+    st.session_state.messages.append({"role": "assistant", "hits": hits, "changes": changes})
     with st.chat_message("assistant"):
-        render_hits(hits)
+        render_hits(hits, changes)
         st.caption(DISCLAIMER)
 
     LOGS.mkdir(exist_ok=True)
     log = {"time": datetime.now().isoformat(timespec="seconds"), "question": question, "role": role,
-           "unit": unit, "with_title": with_title, "hits": [h["id"] for h in hits]}
+           "unit": unit, "with_title": with_title, "normalize": use_norm, "query": query, "hits": [h["id"] for h in hits]}
     with (LOGS / f"chat_{datetime.now():%Y%m%d}.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(log, ensure_ascii=False) + "\n")
