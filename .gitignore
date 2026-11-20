@@ -3,3 +3,4 @@ data/processed/
 .env
 .venv/
 __pycache__/
+logs/

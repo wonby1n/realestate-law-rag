@@ -41,6 +41,7 @@
 data/raw/        수집 원문 (git 제외)
 data/processed/  파싱·쪼갠 결과 (git 제외)
 src/             수집·파싱·색인·검색·답변 코드
+app/             채팅 화면 (Streamlit)
 eval/            평가 질문(정답지)과 평가 결과
 docs/            설계·일정·실험 기록
 ```
